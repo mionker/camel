@@ -35,6 +35,11 @@ public class SjmsEndpointConfigurer extends PropertyConfigurerSupport implements
         case "asyncStopListener": target.setAsyncStopListener(property(camelContext, boolean.class, value)); return true;
         case "autostartup":
         case "autoStartup": target.setAutoStartup(property(camelContext, boolean.class, value)); return true;
+        case "batchsize":
+        case "batchSize": target.setBatchSize(property(camelContext, int.class, value)); return true;
+        case "batchtimeout":
+        case "batchTimeout": target.setBatchTimeout(property(camelContext, long.class, value)); return true;
+        case "batching": target.setBatching(property(camelContext, boolean.class, value)); return true;
         case "bridgeerrorhandler":
         case "bridgeErrorHandler": target.setBridgeErrorHandler(property(camelContext, boolean.class, value)); return true;
         case "clientid":
@@ -133,6 +138,11 @@ public class SjmsEndpointConfigurer extends PropertyConfigurerSupport implements
         case "asyncStopListener": return boolean.class;
         case "autostartup":
         case "autoStartup": return boolean.class;
+        case "batchsize":
+        case "batchSize": return int.class;
+        case "batchtimeout":
+        case "batchTimeout": return long.class;
+        case "batching": return boolean.class;
         case "bridgeerrorhandler":
         case "bridgeErrorHandler": return boolean.class;
         case "clientid":
@@ -232,6 +242,11 @@ public class SjmsEndpointConfigurer extends PropertyConfigurerSupport implements
         case "asyncStopListener": return target.isAsyncStopListener();
         case "autostartup":
         case "autoStartup": return target.isAutoStartup();
+        case "batchsize":
+        case "batchSize": return target.getBatchSize();
+        case "batchtimeout":
+        case "batchTimeout": return target.getBatchTimeout();
+        case "batching": return target.isBatching();
         case "bridgeerrorhandler":
         case "bridgeErrorHandler": return target.isBridgeErrorHandler();
         case "clientid":

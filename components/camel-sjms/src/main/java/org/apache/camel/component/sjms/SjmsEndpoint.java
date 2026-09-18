@@ -34,6 +34,8 @@ import org.apache.camel.MultipleConsumersSupport;
 import org.apache.camel.PollingConsumer;
 import org.apache.camel.Processor;
 import org.apache.camel.Producer;
+import org.apache.camel.component.sjms.consumer.BatchEndpointMessageListener;
+import org.apache.camel.component.sjms.consumer.BatchMessageListenerContainer;
 import org.apache.camel.component.sjms.consumer.EndpointMessageListener;
 import org.apache.camel.component.sjms.consumer.SimpleMessageListenerContainer;
 import org.apache.camel.component.sjms.jms.DefaultDestinationCreationStrategy;
@@ -285,6 +287,18 @@ public class SjmsEndpoint extends DefaultEndpoint
     @UriParam(defaultValue = "false", label = "advanced",
               description = "Sets whether synchronous processing should be strictly used")
     private boolean synchronous;
+    @UriParam(label = "consumer,batch", defaultValue = "false",
+              description = "Enable batch consuming. The route receives one Exchange per batch, whose body"
+                            + " is a List<Exchange> of the individual JMS messages, instead of one Exchange per message.")
+    private boolean batching;
+    @UriParam(label = "consumer,batch", defaultValue = "100",
+              description = "Maximum number of messages per batch. A value <= 0 means only batchTimeout"
+                            + " controls when a batch is emitted.")
+    private int batchSize = 100;
+    @UriParam(label = "consumer,batch", defaultValue = "1000",
+              description = "Maximum time in millis to wait, from receipt of the first message in a batch,"
+                            + " before emitting a partial batch even if batchSize has not been reached.")
+    private long batchTimeout = 1000L;
 
     private JmsObjectFactory jmsObjectFactory = new Jms11ObjectFactory();
 
@@ -350,12 +364,31 @@ public class SjmsEndpoint extends DefaultEndpoint
 
     @Override
     public Consumer createConsumer(Processor processor) throws Exception {
+        if (isBatching()) {
+            return createBatchConsumer(processor);
+        } else {
+            return createSimpleConsumer(processor);
+        }
+    }
+
+    protected Consumer createSimpleConsumer(Processor processor) throws Exception {
         MessageListenerContainer container = createMessageListenerContainer(this);
         SjmsConsumer consumer = new SjmsConsumer(this, processor, container);
 
         EndpointMessageListener listener = new EndpointMessageListener(consumer, this, processor);
         configureMessageListener(listener);
         container.setMessageListener(listener);
+
+        configureConsumer(consumer);
+        return consumer;
+    }
+
+    protected Consumer createBatchConsumer(Processor processor) throws Exception {
+        BatchMessageListenerContainer container = createBatchMessageListenerContainer(this);
+        SjmsConsumer consumer = new SjmsConsumer(this, processor, container);
+
+        BatchEndpointMessageListener listener = new BatchEndpointMessageListener(consumer, this, processor);
+        container.setBatchListener(listener);
 
         configureConsumer(consumer);
         return consumer;
@@ -445,6 +478,12 @@ public class SjmsEndpoint extends DefaultEndpoint
 
     public MessageListenerContainer createMessageListenerContainer(SjmsEndpoint endpoint) {
         SimpleMessageListenerContainer answer = new SimpleMessageListenerContainer(endpoint);
+        answer.setConcurrentConsumers(concurrentConsumers);
+        return answer;
+    }
+
+    public BatchMessageListenerContainer createBatchMessageListenerContainer(SjmsEndpoint endpoint) {
+        BatchMessageListenerContainer answer = new BatchMessageListenerContainer(endpoint);
         answer.setConcurrentConsumers(concurrentConsumers);
         return answer;
     }
@@ -892,5 +931,29 @@ public class SjmsEndpoint extends DefaultEndpoint
             throw new IllegalArgumentException("BlobMessage is not supported by this implementation");
         }
         this.jmsMessageType = jmsMessageType;
+    }
+
+    public void setBatching(boolean batching) {
+        this.batching = batching;
+    }
+
+    public boolean isBatching() {
+        return this.batching;
+    }
+
+    public void setBatchSize(int batchSize) {
+        this.batchSize = batchSize;
+    }
+
+    public int getBatchSize() {
+        return batchSize;
+    }
+
+    public void setBatchTimeout(long batchTimeout) {
+        this.batchTimeout = batchTimeout;
+    }
+
+    public long getBatchTimeout() {
+        return this.batchTimeout;
     }
 }
