@@ -165,7 +165,7 @@ public class BatchConsumerTransactedTest extends Jms2TestSupport {
         private final AtomicInteger counter = new AtomicInteger();
 
         @Override
-        public void process(org.apache.camel.Exchange exchange) {
+        public void process(Exchange exchange) {
             int minimumBatchAttempt = 1;
             if (counter.incrementAndGet() <= minimumBatchAttempt) {
                 throw new IllegalArgumentException("Forced rollback");
