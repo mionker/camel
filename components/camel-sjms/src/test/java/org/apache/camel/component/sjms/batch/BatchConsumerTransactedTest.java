@@ -19,6 +19,7 @@ package org.apache.camel.component.sjms.batch;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.IntStream;
 
+import org.apache.camel.Exchange;
 import org.apache.camel.Processor;
 import org.apache.camel.RoutesBuilder;
 import org.apache.camel.component.mock.MockEndpoint;
@@ -28,6 +29,7 @@ import org.junit.jupiter.api.Test;
 import static java.lang.String.format;
 import static org.apache.camel.component.sjms.batch.BatchTestHelper.BATCH_ROUTEBUILDER_MOCK_FINISH;
 import static org.apache.camel.component.sjms.batch.BatchTestHelper.BATCH_ROUTEBUILDER_MOCK_START;
+import static org.apache.camel.component.sjms.batch.BatchTestHelper.assertBatchRedelivered;
 import static org.apache.camel.component.sjms.batch.BatchTestHelper.assertBatchSizesInOrder;
 import static org.apache.camel.component.sjms.batch.BatchTestHelper.createBatchRoute;
 import static org.apache.camel.component.sjms.batch.BatchTestHelper.getBatchBodiesAsString;
@@ -61,7 +63,9 @@ public class BatchConsumerTransactedTest extends JmsTestSupport {
                 IntStream.rangeClosed(1, 5)
                         .mapToObj(i -> String.format(MESSAGE_TEXT, i))
                         .toList(),
-                getBatchBodiesAsString(mockFinish.getExchanges().get(0)));
+                getBatchBodiesAsString(mockFinish.getExchanges().getFirst()));
+        assertBatchRedelivered(mockFinish.getExchanges().getFirst(), "Message 1", true);
+
     }
 
     @Test
@@ -82,7 +86,8 @@ public class BatchConsumerTransactedTest extends JmsTestSupport {
                 IntStream.rangeClosed(1, 5)
                         .mapToObj(i -> String.format(MESSAGE_TEXT, i))
                         .toList(),
-                getBatchBodiesAsString(mockFinish.getExchanges().get(0)));
+                getBatchBodiesAsString(mockFinish.getExchanges().getFirst()));
+        assertBatchRedelivered(mockFinish.getExchanges().getFirst(), "Message 1", true);
     }
 
     @Test
@@ -116,7 +121,7 @@ public class BatchConsumerTransactedTest extends JmsTestSupport {
         private final AtomicInteger counter = new AtomicInteger();
 
         @Override
-        public void process(org.apache.camel.Exchange exchange) {
+        public void process(Exchange exchange) {
             int minimumBatchAttempt = 1;
             if (counter.incrementAndGet() <= minimumBatchAttempt) {
                 throw new IllegalArgumentException("Forced rollback");

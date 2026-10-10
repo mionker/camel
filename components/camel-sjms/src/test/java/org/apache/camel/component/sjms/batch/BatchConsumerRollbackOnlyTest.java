@@ -18,6 +18,7 @@ package org.apache.camel.component.sjms.batch;
 
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.apache.camel.Exchange;
 import org.apache.camel.Processor;
 import org.apache.camel.RoutesBuilder;
 import org.apache.camel.component.mock.MockEndpoint;
@@ -84,7 +85,7 @@ public class BatchConsumerRollbackOnlyTest extends JmsTestSupport {
         private final AtomicInteger counter = new AtomicInteger();
 
         @Override
-        public void process(org.apache.camel.Exchange exchange) {
+        public void process(Exchange exchange) {
             int minimumBatchAttempt = 1;
             if (counter.incrementAndGet() <= minimumBatchAttempt) {
                 exchange.setRollbackOnly(true);
