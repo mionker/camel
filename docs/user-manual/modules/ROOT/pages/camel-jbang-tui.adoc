@@ -33,8 +33,9 @@ image::jbang/camel-tui-overview.png[TUI Overview showing multiple routes]
   deep dives into Kafka, SQL, memory leaks, JFR and CVEs.
 * *Ask the AI* -- the xref:camel-jbang-tui-ai.adoc[AI panel] (*F8*) with a hosted or a local model, and
   xref:camel-jbang-tui-ai-agents.adoc[AI coding agents] that see and drive the TUI over MCP and ACP.
-* *Make it yours* -- xref:camel-jbang-tui-settings.adoc[themes, settings], the embedded shell, browser access and demo
-  recording.
+* *Make it yours* -- xref:camel-jbang-tui-settings.adoc[themes, settings], the embedded shell and browser access.
+* *Show it* -- xref:camel-jbang-tui-recording.adoc[screenshots, captions and demo recordings] as animated GIFs,
+  scripted as a tape that you or an AI agent writes.
 
 == Getting Started
 
@@ -80,7 +81,7 @@ The *More* menu (key *0*) opens a popup with tabs organized into groups:
 
 * *Routing* -- Browse Endpoints, Consumers, HTTP, Inflight, Producers, Route Controller
 * *Observability* -- Circuit Breaker, Health, JFR, Metrics, Network Services, Exchange Events, Recovery Tasks, OpenTelemetry Spans
-* *AI* -- Ollama (listed when an Ollama server is detected)
+* *AI* -- Semantic (definitions, expert contracts, relationships and sample evaluation), Ollama (listed when an Ollama server is detected)
 * *Data* -- JDBC DataSource, Kafka, Secrets, SQL Query, SQL Trace
 * *JVM* -- Classpath, Heap Memory Histogram, Memory Usage, Memory Leak, Process, Startup, Threads
 * *Project* -- Beans, Catalog, Configuration, CVE Audit, Maven Dependencies, Type Converters, Data Type Transformers
@@ -95,7 +96,8 @@ and Routes shows the route count.
 
 Two panels can be opened on top of any tab: *F6* opens an xref:camel-jbang-tui-settings.adoc#_embedded_shell_f6[embedded shell]
 for running `camel` commands, and *F8* opens the xref:camel-jbang-tui-ai.adoc[AI panel] for asking
-questions about the running integrations.
+questions about the running integrations. The panel is one of several ways to use AI with the TUI; see
+xref:camel-jbang-tui-ai-ways.adoc[Ways to Use AI] for how they compare.
 
 == More about the TUI
 
@@ -110,12 +112,16 @@ fix with AI, completion, quick documentation, navigation, live run data
 | xref:camel-jbang-tui-diagram.adoc[Diagram] | The architecture, topology and route views, external endpoints, metrics
 | xref:camel-jbang-tui-observe.adoc[Observing Integrations] | Activity, message history, errors, spans, process, HTTP
 probe, CVE audit, Kafka, SQL, memory leaks, JFR, catalog
+| xref:camel-jbang-tui-ai-ways.adoc[Ways to Use AI] | The AI panel, a coding agent over ACP, your agent over MCP, and
+`camel mcp`, side by side with a diagram
 | xref:camel-jbang-tui-ai.adoc[AI Panel] | AI providers, slash commands, project overview, AI log
 | xref:camel-jbang-tui-local-models.adoc[Local Models] | Ollama and OpenAI-compatible servers, the tool set for local
 models, what a question costs, the Ollama tab
 | xref:camel-jbang-tui-ai-agents.adoc[AI Agents] | MCP and ACP: what an AI agent can see and do, edits you confirm
 | xref:camel-jbang-tui-settings.adoc[Actions, Settings and Themes] | The actions menu, embedded shell, themes, settings,
-browser access, recording demos
+browser access
+| xref:camel-jbang-tui-recording.adoc[Screenshots and Demo Recordings] | Screenshots, presenting, recording a demo from
+a tape and converting it to a GIF
 |===
 
 == Keyboard Shortcuts
@@ -179,7 +185,7 @@ See the xref:camel-jbang-tui-source-editor.adoc#_keyboard_shortcuts[keyboard sho
 |
 
 | `--record`
-| Replay a `.tape` file and record the session to an Asciinema `.cast` file.
+| Play a `.tape` file in the TUI and record it to an Asciinema `.cast` file. See xref:camel-jbang-tui-recording.adoc#_scripted_recording[Scripted Recording] for the tape commands.
 |
 
 | `--record-size`

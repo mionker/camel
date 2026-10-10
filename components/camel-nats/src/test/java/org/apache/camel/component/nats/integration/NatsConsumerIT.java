@@ -16,17 +16,11 @@
  */
 package org.apache.camel.component.nats.integration;
 
-import java.util.concurrent.TimeUnit;
-
 import org.apache.camel.EndpointInject;
-import org.apache.camel.Route;
 import org.apache.camel.builder.RouteBuilder;
 import org.apache.camel.component.mock.MockEndpoint;
 import org.apache.camel.component.nats.NatsConstants;
-import org.apache.camel.component.nats.NatsConsumer;
 import org.junit.jupiter.api.Test;
-
-import static org.awaitility.Awaitility.await;
 
 public class NatsConsumerIT extends NatsITSupport {
 
@@ -36,14 +30,9 @@ public class NatsConsumerIT extends NatsITSupport {
     @Test
     public void testConsumer() throws Exception {
         mockResultEndpoint.expectedBodiesReceived("Hello World");
-        mockResultEndpoint.expectedHeaderReceived(NatsConstants.NATS_SUBJECT, "test");
+        mockResultEndpoint.expectedHeaderReceived(NatsConstants.NATS_SUBJECT, "consumer");
 
-        // Wait for the NATS consumer to be subscribed before sending messages,
-        // since core NATS does not persist messages for inactive subscribers
-        await().atMost(10, TimeUnit.SECONDS)
-                .until(() -> context.getRoutes().stream()
-                        .map(Route::getConsumer)
-                        .anyMatch(c -> c instanceof NatsConsumer nc && nc.isActive()));
+        waitForNatsConsumers(1);
 
         template.sendBody("direct:send", "Hello World");
 
@@ -55,9 +44,9 @@ public class NatsConsumerIT extends NatsITSupport {
         return new RouteBuilder() {
             @Override
             public void configure() {
-                from("direct:send").to("nats:test?flushConnection=true");
+                from("direct:send").to("nats:consumer?flushConnection=true");
 
-                from("nats:test?flushConnection=true").to(mockResultEndpoint);
+                from("nats:consumer?flushConnection=true").to(mockResultEndpoint);
             }
         };
     }

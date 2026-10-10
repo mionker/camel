@@ -13,6 +13,9 @@ Camel applications — without you having to copy-paste anything.
 Built on https://quarkus.io/[Quarkus] with the
 https://docs.quarkiverse.io/quarkus-mcp-server/dev/index.html[quarkus-mcp-server] extension.
 
+The Camel TUI has an MCP server of its own, `camel tui --mcp`, that also lets an agent see and drive the TUI screen;
+see xref:camel-jbang-tui-ai-ways.adoc[Camel TUI Ways to Use AI] for how the two compare.
+
 == Getting Started
 
 The quickest way to get started:
@@ -347,6 +350,9 @@ project `directory` as an argument, the runtime tools take the integration `name
   plain file name in the directory is accepted. Nobody is asked before the write: the MCP client (Claude Code,
   Cursor and the others ask before a tool that is not read-only runs) is where the human sits, and the
   `read-only` access level of the security layer hides the tool altogether.
+  When an integration runs in dev mode from the directory (as `camel_run` starts it), the answer says how it
+  reloaded the file and what its routes logged right after, so the agent sees the result of the change, such as
+  an empty value its route now produces, without a call to `camel_get_log`.
 
 | `camel_edit_file`
 | Changes a file by replacing one snippet: the lines to find (they must name one place; other indentation is fine)
@@ -354,6 +360,11 @@ project `directory` as an argument, the runtime tools take the integration `name
   Validated and reloaded as a write is, and the answer says at which line it changed. A model that rewrites a whole
   file to add one step corrupts the lines it did not mean to touch, so this is the tool for a change to an existing
   file; `camel_write_file` writes a new one.
+  A change to several places of one file goes in one call, as `edits` (a list of find and replace, applied in
+  order): the file is validated, written and reloaded once, never half done, and when one of them does not match
+  the file is not changed and the answer says which. A route that sends to a `direct:` endpoint no route consumes
+  yet gets a note in the answer: in dev mode the messages sent there wait for the route, and the reload that adds it
+  cuts them off, so the route belongs in the same call.
 
 | `camel_run`
 | Starts an integration from a project directory with `camel run --source-dir` in a separate process, in dev

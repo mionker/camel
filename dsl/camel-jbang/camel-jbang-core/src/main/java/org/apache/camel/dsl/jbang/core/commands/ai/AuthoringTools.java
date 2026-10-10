@@ -30,13 +30,16 @@ import java.util.Collection;
 import java.util.Comparator;
 import java.util.EnumSet;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Consumer;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import org.apache.camel.catalog.CamelCatalog;
 import org.apache.camel.dsl.jbang.core.common.RuntimeHelper;
 import org.apache.camel.util.json.JsonArray;
 import org.apache.camel.util.json.JsonObject;
@@ -61,6 +64,10 @@ public final class AuthoringTools {
 
     static final String NAME_DESC = "Integration name or pid (default: the selected one, or the only one running)";
     static final String VERSION_DESC = "Camel version to answer for (default: the CLI's own, or the selected integration's)";
+    public static final String EDITS_DESC
+            = "Several changes to the file in one call, applied in order and written once, so it is never reloaded"
+              + " half done, e.g. a to: direct:x and the route from direct:x:"
+              + " [{\"find\": \"...\", \"replace\": \"...\"}, {\"find\": \"...\", \"replace\": \"...\"}]";
     static final String DIRECTORY_DESC = "Project directory with the source files (default: the selected integration's)";
 
     /** Files listed and read by the file tools; more than that and a directory is not an integration's sources. */
@@ -239,23 +246,26 @@ public final class AuthoringTools {
                 }));
 
         registry.accept(tool("camel_edit_file",
-                "Changes a file by replacing one snippet: the exact text to find (it must occur once) and what to "
+                "Changes a file by replacing a snippet: the exact text to find (it must occur once) and what to "
                                                 + "put there. Validated and reloaded as a write is. Use it to change an existing file, "
-                                                + "camel_write_file for a new one.")
+                                                + "camel_write_file for a new one. A change to several places of the file is given "
+                                                + "at once in edits, so the file is written and reloaded once, not half done.")
                 .param("directory", "string", DIRECTORY_DESC, false)
                 .param("file", "string", FILE_PATH_DESC, true)
                 .param("find", "string", "The lines to replace as they stand in the file; other indentation is fine "
-                                         + "when the lines name one place",
-                        true)
-                .param("replace", "string", "The text to put there; empty removes it", true)
+                                         + "when the lines name one place (or use edits)",
+                        false)
+                .param("replace", "string", "The text to put there; empty removes it", false)
+                .arrayParam("edits", EDITS_DESC, false, "find", "The lines to replace as they stand in the file",
+                        "replace", "The text to put there; empty removes it")
                 .param("camelVersion", "string", VERSION_DESC, false)
                 .readOnly(false)
                 .core(true)
                 .executor((ctx, args) -> {
                     applyVersion(ctx, args);
                     Path dir = ctx.resolveDirectory(args.get("directory"));
-                    return editFile(ctx, dir, required(args, "file"), required(args, "find"),
-                            args.get("replace") == null ? "" : args.get("replace")).toJson();
+                    return editFile(ctx, dir, required(args, "file"), args.get("find"),
+                            args.get("replace") == null ? "" : args.get("replace"), args.get("edits")).toJson();
                 }));
 
         registry.accept(tool("camel_run",
@@ -531,7 +541,7 @@ public final class AuthoringTools {
         result.put("file", file);
         result.put("errors", new JsonArray(errors));
         putKameletGuide(result, file, errors);
-        putKameletNotes(result, file, content);
+        putFileNotes(result, file, content);
         // the problems whose fix is certain, as edits an agent can apply (camel_edit_file find/replace)
         JsonArray fixes = new JsonArray();
         String[] lines = content.split("\n", -1);
@@ -597,6 +607,8 @@ public final class AuthoringTools {
 
     /** How long a write waits for the running integration's reload record before answering without it. */
     static final long RELOAD_WAIT_MILLIS = 8000;
+    /** How long a write waits after the reload for the first output of the routes (CAMEL-25513). */
+    static final long OUTPUT_WAIT_MILLIS = 3000;
 
     /**
      * Replaces one snippet of a file and writes the result through {@link #writeFile}, so a change to an existing file
@@ -607,7 +619,12 @@ public final class AuthoringTools {
     private static final int EDIT_WINDOW_LINES = 20;
 
     public static JsonObject editFile(ToolContext ctx, Path dir, String file, String find, String replace) {
-        JsonObject edit = editedContent(dir, file, find, replace);
+        return editFile(ctx, dir, file, find, replace, null);
+    }
+
+    /** As {@link #editFile(ToolContext, Path, String, String, String)} with several edits, written once. */
+    public static JsonObject editFile(ToolContext ctx, Path dir, String file, String find, String replace, String edits) {
+        JsonObject edit = editedContent(dir, file, find, replace, edits);
         String content = edit.getString("content");
         if (content == null) {
             return edit; // not-found or ambiguous: the answer says what to do instead
@@ -617,6 +634,10 @@ public final class AuthoringTools {
             result.put("status", "edited");
             result.put("editedAtLine", edit.getInteger("editedAtLine"));
             result.put("replacedLines", edit.getInteger("replacedLines"));
+            if (edit.get("edits") != null) {
+                result.put("edits", edit.get("edits"));
+                result.put("editedAtLines", edit.get("editedAtLines"));
+            }
         } else {
             result.put("message", "The file was not changed: the result has validation errors. Fix them and call"
                                   + " camel_edit_file again.");
@@ -630,9 +651,31 @@ public final class AuthoringTools {
      * TUI writes that content itself, so an edit is confirmed and replayed in the editor like a write.
      */
     public static JsonObject editedContent(Path dir, String file, String find, String replace) {
+        return editedContent(dir, file, find, replace, null);
+    }
+
+    /**
+     * As {@link #editedContent(Path, String, String, String)} for several snippets of one file: find/replace (when
+     * given) and then each edit of {@code edits} (a JSON list of find and replace) are applied in order to the content,
+     * so the file is written, and an integration in dev mode reloaded, once. A change made in two calls is reloaded
+     * half done in between: a route that sends to a direct endpoint whose route the next call adds waits for it, and is
+     * cut off by that reload (CAMEL-25501). All or nothing: the answer of the first edit that misses, saying which one,
+     * and the file is not changed.
+     */
+    public static JsonObject editedContent(Path dir, String file, String find, String replace, String edits) {
         Path path = resolveFile(dir, file);
         if (!Files.isRegularFile(path)) {
             throw new ToolExecutionException(file + " does not exist: write the whole file with camel_write_file");
+        }
+        List<String[]> all = new ArrayList<>();
+        if (find != null && !find.isEmpty()) {
+            all.add(new String[] { find, replace == null ? "" : replace });
+        }
+        all.addAll(parseEdits(edits));
+        if (all.isEmpty()) {
+            throw new ToolExecutionException(
+                    "find is required: the text to replace, as it stands in the file (or"
+                                             + " edits, a list of find and replace for several places)");
         }
         String content;
         try {
@@ -640,9 +683,74 @@ public final class AuthoringTools {
         } catch (IOException e) {
             throw new ToolExecutionException("Failed to read " + path + ": " + e.getMessage());
         }
-        if (find == null || find.isEmpty()) {
-            throw new ToolExecutionException("find is required: the text to replace, as it stands in the file");
+        JsonObject result = null;
+        JsonArray lines = new JsonArray();
+        int replaced = 0;
+        for (int i = 0; i < all.size(); i++) {
+            JsonObject one = editedSnippet(file, content, all.get(i)[0], all.get(i)[1]);
+            if (one.getString("content") == null) {
+                if (all.size() > 1) {
+                    one.put("edit", i + 1);
+                    one.put("edits", all.size());
+                    one.put("message", "Edit " + (i + 1) + " of " + all.size() + ": " + one.getString("message")
+                                       + (i > 0 ? " (the file as the edits before it leave it)" : "")
+                                       + ". None of the edits was made: the file is unchanged.");
+                }
+                return one;
+            }
+            content = one.getString("content");
+            lines.add(one.getInteger("editedAtLine"));
+            replaced += one.getInteger("replacedLines");
+            if (result == null) {
+                result = one;
+            }
         }
+        result.put("content", content);
+        result.put("replacedLines", replaced);
+        if (all.size() > 1) {
+            result.put("edits", all.size());
+            result.put("editedAtLines", lines);
+        }
+        return result;
+    }
+
+    /** The edits argument: a JSON list of objects with find and replace (or that list as a JSON string). */
+    static List<String[]> parseEdits(String edits) {
+        List<String[]> answer = new ArrayList<>();
+        if (edits == null || edits.isBlank()) {
+            return answer;
+        }
+        Object parsed;
+        try {
+            parsed = Jsoner.deserialize(edits);
+            if (parsed instanceof String text) {
+                // the list sent as a string holding JSON
+                parsed = Jsoner.deserialize(text);
+            }
+        } catch (Exception e) {
+            parsed = null;
+        }
+        if (parsed instanceof Map<?, ?> single) {
+            parsed = List.of(single);
+        }
+        if (!(parsed instanceof List<?> list)) {
+            throw new ToolExecutionException(EDITS_SHAPE);
+        }
+        for (Object item : list) {
+            if (!(item instanceof Map<?, ?> m) || !(m.get("find") instanceof String f) || f.isEmpty()) {
+                throw new ToolExecutionException(EDITS_SHAPE);
+            }
+            answer.add(new String[] { f, m.get("replace") instanceof String r ? r : "" });
+        }
+        return answer;
+    }
+
+    private static final String EDITS_SHAPE
+            = "edits must be a list of {\"find\": \"the text as it stands in the file\", \"replace\": \"the text to put"
+              + " there\"}";
+
+    /** One snippet replaced in the content: the {@link #editedContent(Path, String, String, String)} answer. */
+    private static JsonObject editedSnippet(String file, String content, String find, String replace) {
         String wanted = find;
         String put = replace;
         boolean trimmedMatch = false;
@@ -941,10 +1049,16 @@ public final class AuthoringTools {
      * What a Kamelet file does that works but is not right, which does not refuse a write: a camel: dependency its
      * template does not use (CAMEL-25403).
      */
-    private static void putKameletNotes(JsonObject result, String file, String content) {
+    private static void putFileNotes(JsonObject result, String file, String content) {
         String name = file != null ? file.toLowerCase(Locale.ROOT) : "";
         if (name.endsWith(".kamelet.yaml") || name.endsWith(".kamelet.yml")) {
             List<String> notes = KameletChecks.unusedDependencies(content);
+            if (!notes.isEmpty()) {
+                result.put("notes", new JsonArray(notes));
+            }
+        } else if (name.endsWith(".xsl") || name.endsWith(".xslt")) {
+            // a {expression} in element content is written out as text (CAMEL-25514)
+            List<String> notes = SourceValidator.xsltNotes(content);
             if (!notes.isEmpty()) {
                 result.put("notes", new JsonArray(notes));
             }
@@ -987,11 +1101,25 @@ public final class AuthoringTools {
         // than the ones before the write
         String processName = null;
         String sinceKey = null;
-        boolean watch = ctx.hasProcess() && SourceValidator.isValidatableFile(file);
+        long watchPid = -1;
+        if (SourceValidator.isValidatableFile(file)) {
+            if (ctx.hasProcess()) {
+                watchPid = ctx.pid();
+                RuntimeHelper.ProcessInfo p = RuntimeHelper.findProcess(Long.toString(ctx.pid()));
+                processName = p != null ? p.name() : null;
+            } else {
+                // no integration selected, as through camel-jbang-mcp where the agent passes the directory: the one
+                // running from it in dev mode reloads the file (CAMEL-25513)
+                RuntimeHelper.ProcessInfo p = IntegrationLauncher.devModeFrom(dir);
+                if (p != null) {
+                    watchPid = p.pid();
+                    processName = p.name();
+                }
+            }
+        }
+        boolean watch = watchPid >= 0;
         if (watch) {
-            RuntimeHelper.ProcessInfo p = RuntimeHelper.findProcess(Long.toString(ctx.pid()));
-            processName = p != null ? p.name() : null;
-            sinceKey = ReloadOutcome.latestReloadKey(ReloadOutcome.records(ctx.pid(), processName));
+            sinceKey = ReloadOutcome.latestReloadKey(ReloadOutcome.records(watchPid, processName));
         }
         try {
             Files.createDirectories(path.getParent());
@@ -1009,15 +1137,34 @@ public final class AuthoringTools {
             // written with problems the file already had: said, so they are not taken for fixed
             result.put("existingProblems", new JsonArray(problemsBefore));
         }
+        UnconsumedDirect waiting = null;
         if (validate) {
-            putKameletNotes(result, file, content);
+            putFileNotes(result, file, content);
+            waiting = unconsumedDirect(dir, file, content, ctx.catalog());
+            if (waiting != null) {
+                JsonArray notes = result.get("notes") instanceof JsonArray existing ? existing : new JsonArray();
+                notes.add(waiting.note());
+                result.put("notes", notes);
+            }
         }
         if (watch) {
-            JsonObject reload = ReloadOutcome.await(ctx.pid(), processName, sinceKey, RELOAD_WAIT_MILLIS);
+            JsonObject reload = ReloadOutcome.await(watchPid, processName, sinceKey, RELOAD_WAIT_MILLIS);
             result.put("reload", reload);
             String status = reload.getString("status");
+            String logged = "";
+            if ("reloaded".equals(status)) {
+                // the result of the change, so the agent sees what its route now does (CAMEL-25513)
+                JsonArray output = ReloadOutcome.awaitOutput(watchPid, processName, OUTPUT_WAIT_MILLIS);
+                reload.put("output", output);
+                logged = output.isEmpty()
+                        ? " It logged nothing within " + OUTPUT_WAIT_MILLIS / 1000 + "s after the reload (camel_get_log"
+                          + " shows what it logs later)."
+                        : " After the reload it logged: " + output.get(0)
+                          + (output.size() > 1 ? " (and " + (output.size() - 1) + " more in reload.output)" : "");
+            }
+            final String loggedAfter = logged;
             result.put("message", switch (status) {
-                case "reloaded" -> "The running integration reloaded the file.";
+                case "reloaded" -> "The running integration reloaded the file." + loggedAfter;
                 case "properties" -> "The running integration reloaded the properties.";
                 case "failed" -> "The running integration FAILED to reload the file, the route is not running; fix the"
                                  + " content and write again (see reload.message).";
@@ -1027,7 +1174,54 @@ public final class AuthoringTools {
             result.put("message", "An integration running the file in dev mode reloads it now; otherwise restart the"
                                   + " integration for the change to take effect.");
         }
+        if (waiting != null) {
+            result.put("message", result.getString("message") + " Note: " + waiting.summary() + " (see notes).");
+        }
         return result;
+    }
+
+    private static final Pattern UNCONSUMED_DIRECT = Pattern.compile("sends to (direct:[^,\\s]+), and no route consumes it");
+
+    /**
+     * The direct: endpoints a YAML route file just written sends to and no route consumes yet, as a note: not an error,
+     * the route is often a file or an edit still to come (CAMEL-24955), but until it is there the exchanges sent to it
+     * wait for it, and the reload that adds it cuts them off. Said at the write, the next change goes in one call with
+     * camel_edit_file edits (CAMEL-25501). Null when there is none.
+     */
+    public static UnconsumedDirect unconsumedDirect(Path dir, String file, String content, CamelCatalog catalog) {
+        String name = file != null ? file.toLowerCase(Locale.ROOT) : "";
+        if (!(name.endsWith(".yaml") || name.endsWith(".yml")) || name.endsWith(".kamelet.yaml")
+                || name.endsWith(".kamelet.yml")) {
+            return null;
+        }
+        Set<String> endpoints = new LinkedHashSet<>();
+        try {
+            for (String msg : EndpointConsumerChecks.validateYamlConsumers(content, dir, file, catalog)) {
+                Matcher m = UNCONSUMED_DIRECT.matcher(msg);
+                if (m.find()) {
+                    endpoints.add(m.group(1));
+                }
+            }
+        } catch (RuntimeException e) {
+            // a note only: a content the check cannot read has no note
+            return null;
+        }
+        if (endpoints.isEmpty()) {
+            return null;
+        }
+        String summary = String.join(", ", endpoints) + (endpoints.size() == 1 ? " has" : " have")
+                         + " no route consuming " + (endpoints.size() == 1 ? "it" : "them") + " yet";
+        return new UnconsumedDirect(
+                summary, summary + " (not in this file, nor in the other route files):"
+                         + " in dev mode the messages sent there wait for one, and are cut off when a later save reloads this"
+                         + " route. If the route goes in this file, add it together with the change that sends to it, in one"
+                         + " camel_edit_file call with edits; if it goes in another file, write that file next.");
+    }
+
+    /**
+     * The direct: endpoints no route consumes yet: the short summary for the message, and the whole note.
+     */
+    public record UnconsumedDirect(String summary, String note) {
     }
 
     /**

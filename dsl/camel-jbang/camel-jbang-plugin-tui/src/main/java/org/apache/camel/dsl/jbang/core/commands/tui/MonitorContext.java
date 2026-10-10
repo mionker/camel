@@ -16,6 +16,7 @@
  */
 package org.apache.camel.dsl.jbang.core.commands.tui;
 
+import java.io.IOException;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
@@ -31,6 +32,7 @@ import dev.tamboui.tui.TuiRunner;
 import org.apache.camel.catalog.CamelCatalog;
 import org.apache.camel.dsl.jbang.core.common.CommandLineHelper;
 import org.apache.camel.dsl.jbang.core.common.PathUtils;
+import org.apache.camel.dsl.jbang.core.common.RuntimeHelper;
 import org.apache.camel.util.json.JsonObject;
 
 /**
@@ -226,6 +228,15 @@ class MonitorContext {
             } finally {
                 PathUtils.deleteFile(outputFile);
             }
+        }
+    }
+
+    /** Request-specific files keep a late response from being consumed by another action. */
+    JsonObject executeIndependentAction(String pid, JsonObject request, long timeoutMs) {
+        try {
+            return RuntimeHelper.executeAction(Long.parseLong(pid), request, timeoutMs);
+        } catch (IOException e) {
+            return null;
         }
     }
 

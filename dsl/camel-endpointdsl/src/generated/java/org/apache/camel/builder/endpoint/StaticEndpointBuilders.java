@@ -12903,6 +12903,60 @@ public class StaticEndpointBuilders {
         return OpenAIEndpointBuilderFactory.endpointBuilder(componentName, path);
     }
     /**
+     * OpenFeature (camel-openfeature)
+     * Evaluate feature flags using the OpenFeature specification with flagd.
+     * 
+     * Category: cloud
+     * Since: 4.23
+     * Maven coordinates: org.apache.camel:camel-openfeature
+     * 
+     * Syntax: <code>openfeature:domain/evaluationType</code>
+     * 
+     * Path parameter: domain (required)
+     * The OpenFeature domain to bind the provider to.
+     * 
+     * Path parameter: evaluationType
+     * The evaluation type. 'boolean' and 'isEnabled' use boolean evaluation
+     * (getBooleanValue). 'variant' uses string evaluation (getStringValue).
+     * When not set, the type is inferred from defaultValue.
+     * There are 3 enums and the value can be one of: boolean, variant,
+     * isEnabled
+     * 
+     * @param path domain/evaluationType
+     * @return the dsl builder
+     */
+    public static OpenFeatureEndpointBuilderFactory.OpenFeatureEndpointBuilder openfeature(String path) {
+        return openfeature("openfeature", path);
+    }
+    /**
+     * OpenFeature (camel-openfeature)
+     * Evaluate feature flags using the OpenFeature specification with flagd.
+     * 
+     * Category: cloud
+     * Since: 4.23
+     * Maven coordinates: org.apache.camel:camel-openfeature
+     * 
+     * Syntax: <code>openfeature:domain/evaluationType</code>
+     * 
+     * Path parameter: domain (required)
+     * The OpenFeature domain to bind the provider to.
+     * 
+     * Path parameter: evaluationType
+     * The evaluation type. 'boolean' and 'isEnabled' use boolean evaluation
+     * (getBooleanValue). 'variant' uses string evaluation (getStringValue).
+     * When not set, the type is inferred from defaultValue.
+     * There are 3 enums and the value can be one of: boolean, variant,
+     * isEnabled
+     * 
+     * @param componentName to use a custom component name for the endpoint
+     * instead of the default name
+     * @param path domain/evaluationType
+     * @return the dsl builder
+     */
+    public static OpenFeatureEndpointBuilderFactory.OpenFeatureEndpointBuilder openfeature(String componentName, String path) {
+        return OpenFeatureEndpointBuilderFactory.endpointBuilder(componentName, path);
+    }
+    /**
      * OpenFGA (camel-openfga)
      * Authorize an Exchange against an OpenFGA relationship graph, and maintain
      * the relationship tuples it is authorized against.

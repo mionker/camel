@@ -2578,7 +2578,7 @@ class AiPanel {
         // as it always directly follows its question.
         for (ConversationEntry entry : conversation) {
             switch (entry.role()) {
-                case USER -> md.append("> ").append(entry.text().replace("\n", "\n> ")).append("\n\n");
+                case USER -> md.append(quoteQuestion(entry.text())).append("\n\n");
                 case ASSISTANT -> {
                     md.append(toHardBreaks(entry.text())).append("\n\n");
                     if (entry.note() != null) {
@@ -3297,7 +3297,7 @@ class AiPanel {
     private String acpPreamble() {
         String prompt = buildSystemPrompt();
         return (prompt.endsWith("\n") ? prompt : prompt + "\n")
-               + "- You run inside the Camel TUI: edit the integration's source files only with camel_write_file, "
+               + "- You run inside the Camel TUI: edit the integration's source files only with camel_edit_file or camel_write_file, "
                + "never with your own file tools, so the user sees the diff and confirms it, or watches the edit "
                + "being typed in the Source editor (/write live)\n";
     }
@@ -3332,11 +3332,12 @@ class AiPanel {
         sb.append("say what failed and what to try\n");
         sb.append("- To feed a route that consumes from a broker (MQTT, Kafka, JMS), tui_send_message can publish ");
         sb.append("to the broker with the route's own component and options\n");
-        sb.append("- To edit: camel_get_files, then camel_write_file with the complete file; the user confirms, never ");
+        sb.append("- To edit: camel_get_files, then camel_edit_file (several places at once with edits), camel_write_file ");
+        sb.append("for a new file; the user confirms, never ");
         sb.append(
                 "retry a rejected write. Invalid YAML/properties is refused with errors: fix them (camel_catalog_doc has the ");
         sb.append("option names)\n");
-        sb.append("- Write files only with camel_write_file; never paste file contents in the answer\n");
+        sb.append("- Write files only with these tools; never paste file contents in the answer\n");
         sb.append("- YAML DSL shape: a step is `- log: {message: ...}`, `- to: {uri: ...}`, an expression goes under ");
         sb.append("expression: (`- setBody: {expression: {simple: ...}}`); the shorthand forms are deprecated\n");
         sb.append("- 'log at WARN' in a route is the log step's loggingLevel in the source");
@@ -3364,12 +3365,9 @@ class AiPanel {
      * or the selected one reloaded (the groups then only grow: what it had before still counts), so the tools and the
      * prompt stay the same from question to question and a local model's prompt cache keeps working. While an
      * integration has no groups yet its status is read again, since one that just started may not have written it
-     * completely. The full set is not affected.
+     * completely. Full mode also uses these features to discover semantic audit history.
      */
     private void refreshToolGroups() {
-        if (!useCoreTools()) {
-            return;
-        }
         AppStatusSource source = appStatusSource != null ? appStatusSource : facadeStatusSource();
         String pid = source != null ? source.selectedPid() : null;
         int reloads = source != null ? source.reloadCount() : 0;
@@ -3444,7 +3442,9 @@ class AiPanel {
             return "no tools available";
         }
         int total = toolRegistry.getToolDefinitions().size();
-        int active = useCoreTools() ? toolRegistry.getCoreToolDefinitions(toolGroups.tools()).size() : total;
+        int active = useCoreTools()
+                ? toolRegistry.getCoreToolDefinitions(toolGroups.tools()).size()
+                : toolRegistry.getAvailableToolDefinitions(toolGroups.tools()).size();
         String mode = toolMode == null ? TOOL_MODE_AUTO : toolMode;
         String detail = TOOL_MODE_AUTO.equals(mode)
                 ? (useCoreTools() ? " (local provider)" : " (hosted provider)") : "";
@@ -3464,7 +3464,8 @@ class AiPanel {
         }
         List<LlmClient.ToolDef> defs = new ArrayList<>();
         List<TuiToolRegistry.ToolDef> source = useCoreTools()
-                ? toolRegistry.getCoreToolDefinitions(toolGroups.tools()) : toolRegistry.getToolDefinitions();
+                ? toolRegistry.getCoreToolDefinitions(toolGroups.tools())
+                : toolRegistry.getAvailableToolDefinitions(toolGroups.tools());
         for (TuiToolRegistry.ToolDef td : source) {
             defs.add(new LlmClient.ToolDef(td.name(), td.description(), td.inputSchema()));
         }
@@ -3897,6 +3898,40 @@ class AiPanel {
                 || code == KeyCode.F4 || code == KeyCode.F5 || code == KeyCode.F6
                 || code == KeyCode.F7 || code == KeyCode.F9 || code == KeyCode.F10
                 || code == KeyCode.F11 || code == KeyCode.F12;
+    }
+
+    /**
+     * The user's question as a blockquote, its lines kept as typed (hard breaks). A fenced code block in it, such as
+     * the source the fix with AI question quotes, is put outside the quote, as a code block inside a quote is not
+     * rendered.
+     */
+    static String quoteQuestion(String text) {
+        if (text == null) {
+            return "";
+        }
+        StringBuilder sb = new StringBuilder();
+        boolean inFence = false;
+        boolean quoted = false;
+        for (String line : text.split("\n", -1)) {
+            if (line.strip().startsWith("```")) {
+                if (!inFence && quoted) {
+                    // end the quote, so the fence starts a code block of its own
+                    sb.append('\n');
+                    quoted = false;
+                }
+                sb.append(line.strip()).append('\n');
+                if (inFence) {
+                    sb.append('\n');
+                }
+                inFence = !inFence;
+            } else if (inFence) {
+                sb.append(line).append('\n');
+            } else {
+                sb.append(line.isBlank() ? ">" : "> " + line + "  ").append('\n');
+                quoted = true;
+            }
+        }
+        return sb.toString().stripTrailing();
     }
 
     private static String toHardBreaks(String text) {

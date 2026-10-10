@@ -6,6 +6,9 @@ your confirmation.
 
 See xref:camel-jbang-tui.adoc[Camel TUI] for getting started and the other pages.
 
+TIP: Not sure whether you want the AI panel, a coding agent or an MCP server? See
+xref:camel-jbang-tui-ai-ways.adoc[Camel TUI Ways to Use AI] for the options side by side.
+
 == Key Features
 
 * <<_why_this_matters,*Same view as you*>> -- routes, statistics, traces, errors, logs and sources
@@ -31,6 +34,8 @@ have -- and can act on it. The agent can:
 * *Self-troubleshoot* -- when something fails, the AI can autonomously inspect the error,
   read the message trace, correlate with route statistics, and produce a diagnostic report
   with annotated screenshots showing exactly where and why the failure occurred
+
+image::jbang/camel-tui-ai-agent-teaching.gif[An agent connected over MCP explains the integration with arrows and notes on the topology and the route statistics]
 
 == Enabling MCP
 
@@ -76,6 +81,8 @@ speaks the https://agentclientprotocol.com[Agent Client Protocol] (ACP). The TUI
 gives it the TUI's own MCP server, and shows the agent's answer, tool calls and questions in the panel. The agent
 drives the TUI through the same `tui_*` tools that external MCP clients use, and can also read and edit your
 route sources with its own tools.
+
+image::jbang/camel-tui-ai-acp-claude-code.gif[Claude Code picked with Ctrl+P in the AI panel answers a question about the running integration from the TUI's tools]
 
 Any agent that speaks ACP works. Press *Ctrl+P* in the AI panel and pick one of the agents known to work, or
 `acp:custom` to run any other ACP agent:
@@ -175,7 +182,9 @@ by purpose:
 * *Edit* -- write a source file in the integration's source directory (`camel_write_file`), see below
 * *Annotate* -- locate text and diagram nodes by coordinates, draw shapes (boxes, highlights,
   arrows, underlines, text labels), show captions with typewriter animation
-* *Present* -- take screenshots, record tape sessions, control demo pacing
+* *Present* -- take screenshots, record tape sessions, control demo pacing. To record a demo as a GIF,
+  an agent can also write a `.tape` file using the same commands and play it with `camel tui --record`, see
+  xref:camel-jbang-tui-recording.adoc#_scripted_recording[Scripted Recording]
 
 == Editing source files from an AI agent
 
@@ -249,7 +258,7 @@ told what became of it with your next question.
 
 An edit (`camel_edit_file`, which the agent uses to change a file without rewriting it) goes the same way: the
 snippet is replaced in the file's content and the result is confirmed or replayed like any write, so what you see
-in the editor is the finished file either way.
+in the editor is the finished file either way. An edit with several changes (`edits`) is one change to confirm.
 
 While the replay pauses you can also ask the agent about the change it just made: *F8* opens the AI panel
 with the question prefilled (`About edit 2 of 3:`), in a compact panel that leaves the edit in view (*Shift+F8*

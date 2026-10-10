@@ -17,12 +17,14 @@
 package org.apache.camel.dsl.jbang.core.commands.tui;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import org.apache.camel.dsl.jbang.core.commands.LlmClient;
+import org.apache.camel.dsl.jbang.core.commands.ai.AppFeatures;
 import org.apache.camel.util.json.JsonObject;
 import org.junit.jupiter.api.Test;
 
@@ -60,7 +62,9 @@ class AiPanelPromptBudgetTest {
     // full mode only (hosted models), and the panel's own /overview sends no tools at all
     // raised from 9850 for tui_http_endpoints and tui_http_request (CAMEL-25307), measured ~10070: a model that can
     // see what the integration serves and call it is worth the ~250 tokens
-    static final int FULL_BUDGET_TOKENS = 10_250;
+    // raised from 10250 for the edits argument of camel_edit_file (CAMEL-25501), measured ~10400: several places of a
+    // file changed in one call, so dev mode never reloads a file half done
+    static final int FULL_BUDGET_TOKENS = 10_500;
     /** Measured ~5.5k tokens for 28 tools: the core set (~4.7k) plus every tool group (CAMEL-24834). */
     // the SQL group adds tui_execute_sql and tui_update_row (~385 tokens), each group one guidance line in the prompt
     // (~130 for all three); an integration rarely has all of them, and the groups only load for the integration that
@@ -160,6 +164,20 @@ class AiPanelPromptBudgetTest {
 
         assertTrue(full.totalTokens() <= FULL_BUDGET_TOKENS,
                 "full prefix grew to ~" + full.totalTokens() + " tokens, budget " + FULL_BUDGET_TOKENS + ": " + full);
+    }
+
+    @Test
+    void semanticHistoryHasABoundedAdditionalPromptCost() {
+        for (String mode : List.of(AiPanel.TOOL_MODE_CORE, AiPanel.TOOL_MODE_FULL)) {
+            AiPanelToolGroupsTest.FakeApp app = new AiPanelToolGroupsTest.FakeApp();
+            app.features = AiPanelToolGroupsTest.EVERYTHING.merge(AppFeatures.fromStatus(
+                    new JsonObject(Map.of("devConsoles", List.of("semantic-audit")))));
+            AiPanel panel = AiPanelToolGroupsTest.panel(mode, app);
+            panel.refreshToolGroupsForTesting();
+            Prefix prefix = measure(mode + "+semantic", panel);
+            System.out.println("AI panel semantic prefix: " + prefix);
+            assertTrue(prefix.totalTokens() <= (AiPanel.TOOL_MODE_CORE.equals(mode) ? 6100 : 11000));
+        }
     }
 
     @Test

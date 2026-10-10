@@ -139,8 +139,8 @@
         <consul-client-version>1.12.1</consul-client-version>
         <couchbase-client-version>3.12.3</couchbase-client-version>
         <curator-version>5.9.0</curator-version>
-        <cxf-version>4.2.3</cxf-version>
-        <cxf-codegen-plugin-version>4.2.3</cxf-codegen-plugin-version>
+        <cxf-version>4.2.4</cxf-version>
+        <cxf-codegen-plugin-version>4.2.4</cxf-codegen-plugin-version>
         <!-- cxf-xjc is not released as often -->
         <cxf-xjc-plugin-version>4.2.0</cxf-xjc-plugin-version>
         <cxf-xjc-utils-version>4.2.0</cxf-xjc-utils-version>
@@ -157,14 +157,14 @@
         <dnsjava-version>3.6.5</dnsjava-version>
         <djl-version>0.38.0</djl-version>
         <djl-python-version>0.34.0</djl-python-version>
-        <docling-java-version>0.6.6</docling-java-version>
+        <docling-java-version>0.7.0</docling-java-version>
         <docker-java-version>3.7.1</docker-java-version>
         <dropbox-version>7.1.1</dropbox-version>
         <duckdb-jdbc-version>1.5.6.0</duckdb-jdbc-version>
         <ehcache3-version>3.12.0</ehcache3-version>
         <!-- github-api (kohsuke) for camel-github2 -->
         <github-api-version>1.330</github-api-version>
-        <elasticsearch-java-client-version>9.5.4</elasticsearch-java-client-version>
+        <elasticsearch-java-client-version>9.5.5</elasticsearch-java-client-version>
         <elasticsearch-java-client-sniffer-version>9.5.4</elasticsearch-java-client-sniffer-version>
         <endive-version>1.1.0</endive-version>
         <extjwnl-version>2.0.5</extjwnl-version>
@@ -278,7 +278,7 @@
         <java-grok-version>0.2.1</java-grok-version>
         <java-spiffe-version>0.8.17</java-spiffe-version>
         <java-util-version>4.110.0</java-util-version>
-        <jnats-version>2.26.3</jnats-version>
+        <jnats-version>2.26.4</jnats-version>
         <javacc-maven-plugin-version>3.2.1</javacc-maven-plugin-version>
         <javapoet-version>0.20.0</javapoet-version>
         <javassist-version>3.33.0-GA</javassist-version>
@@ -304,7 +304,7 @@
         <jcip-annotations-version>1.0-1</jcip-annotations-version>
         <jcr-version>2.0</jcr-version>
         <jedis-client-version>8.0.1</jedis-client-version>
-        <jetty-version>12.1.13</jetty-version>
+        <jetty-version>12.1.14</jetty-version>
         <jetty-plugin-version>${jetty-version}</jetty-plugin-version>
         <jetty-runner-groupId>org.eclipse.jetty</jetty-runner-groupId>
         <jettison-version>1.5.7</jettison-version>
@@ -313,7 +313,7 @@
         <jgroups-raft-version>1.1.4.Final</jgroups-raft-version>
         <jira-rest-client-api-version>6.0.4</jira-rest-client-api-version>
         <jira-sal-api-version>7.2.1</jira-sal-api-version>
-        <jline-version>4.4.6</jline-version>
+        <jline-version>4.4.7</jline-version>
         <libthrift-version>0.25.0</libthrift-version>
         <jodatime2-version>2.15.0</jodatime2-version>
         <jolokia-version>2.6.3</jolokia-version>
@@ -332,13 +332,13 @@
         <json-path-version>3.0.0</json-path-version>
         <json-smart-version>2.6.0</json-smart-version>
         <jsonata-version>0.9.10</jsonata-version>
-        <json-unit-version>6.2.0</json-unit-version>
+        <json-unit-version>6.3.0</json-unit-version>
         <jsoup-version>1.23.2</jsoup-version>
         <jspecify-version>1.0.1</jspecify-version>
 
         <!-- NullAway / Error Prone (used by -Pnullcheck profile, requires JDK 21+) -->
         <error-prone-version>2.50.0</error-prone-version>
-        <hikaricp-version>6.3.0</hikaricp-version>
+        <hikaricp-version>7.1.0</hikaricp-version>
         <nullaway-version>0.14.2</nullaway-version>
         <jt400-version>21.0.7</jt400-version>
         <jte-version>3.2.4</jte-version>
@@ -356,7 +356,7 @@
         <langchain4j-version>1.21.0</langchain4j-version>
         <!-- remove this one when all langchain4j artifacts are made final -->
         <langchain4j-beta-version>1.21.0-beta31</langchain4j-beta-version> <!-- dependencies in beta version are still in tech preview mode in the Langchain4j project -->
-        <langchain4j-community-version>1.20.0-beta30</langchain4j-community-version> <!-- version for Langchain4j community dependencies : https://github.com/langchain4j/langchain4j-community--> <!-- version for Langchain4j community dependencies : https://github.com/langchain4j/langchain4j-community-->
+        <langchain4j-community-version>1.21.0-beta31</langchain4j-community-version> <!-- version for Langchain4j community dependencies : https://github.com/langchain4j/langchain4j-community--> <!-- version for Langchain4j community dependencies : https://github.com/langchain4j/langchain4j-community-->
         <leveldbjni-version>1.8</leveldbjni-version>
         <leveldb-api-version>0.12</leveldb-api-version>
         <leveldb-version>0.12</leveldb-version>
@@ -396,7 +396,7 @@
         <micrometer-version>1.17.1</micrometer-version>
         <micrometer-tracing-version>1.7.1</micrometer-tracing-version>
         <microprofile-config-version>3.1.2</microprofile-config-version>
-        <milo-version>1.1.7</milo-version>
+        <milo-version>1.1.8</milo-version>
         <milvus-client-version>2.6.25</milvus-client-version>
         <mina-version>2.2.9</mina-version>
         <minio-version>9.0.3</minio-version>
@@ -414,11 +414,15 @@
         <nimbus-jose-jwt>10.10</nimbus-jose-jwt>
         <olingo2-version>2.0.13</olingo2-version>
         <olingo4-version>5.0.0</olingo4-version>
-        <ognl-version>3.4.14</ognl-version>
+        <ognl-version>3.4.15</ognl-version>
         <onnxruntime-version>1.30.0</onnxruntime-version>
         <opa-version>2.1.1</opa-version>
         <opa-wasm-version>1.1.0</opa-wasm-version>
+        <openfeature-sdk-version>1.23.0</openfeature-sdk-version>
         <openfga-version>0.11.0</openfga-version>
+        <flagd-provider-version>0.14.2</flagd-provider-version>
+        <flagd-core-version>2.0.1</flagd-core-version>
+        <flagd-api-version>1.0.0</flagd-api-version>
         <mcp-java-sdk-version>2.0.1</mcp-java-sdk-version>
         <mssql-jdbc-version>12.10.0.jre11</mssql-jdbc-version>
         <ojdbc-version>23.8.0.25.04</ojdbc-version>
@@ -2428,6 +2432,11 @@
             </dependency>
             <dependency>
                 <groupId>org.apache.camel</groupId>
+                <artifactId>camel-openfeature</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.camel</groupId>
                 <artifactId>camel-openfga</artifactId>
                 <version>${project.version}</version>
             </dependency>
@@ -3901,6 +3910,17 @@
                 <groupId>javax.inject</groupId>
                 <artifactId>javax.inject</artifactId>
                 <version>${javax-inject-version}</version>
+            </dependency>
+            <!-- flagd declares open version ranges for these transitive deps; pin them -->
+            <dependency>
+                <groupId>dev.openfeature.contrib.tools</groupId>
+                <artifactId>flagd-core</artifactId>
+                <version>${flagd-core-version}</version>
+            </dependency>
+            <dependency>
+                <groupId>dev.openfeature.contrib.tools</groupId>
+                <artifactId>flagd-api</artifactId>
+                <version>${flagd-api-version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>

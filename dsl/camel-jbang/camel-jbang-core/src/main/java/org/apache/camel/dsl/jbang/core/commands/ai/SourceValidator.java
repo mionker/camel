@@ -139,10 +139,16 @@ public final class SourceValidator {
                 msgs.addAll(validateYamlBeanRefs(content, declarations, catalog));
                 msgs.addAll(validateResourceRefs(content, directory));
                 msgs.addAll(GroovyImportChecks.validateYamlGroovyImports(content, null, declarations.javaClasses()));
+                // a rest-openapi call with no header for a path parameter of its operation (CAMEL-24992)
+                msgs.addAll(OpenApiPathParams.validate(content, directory));
                 if (checkConsumers) {
                     // a direct: or seda: endpoint no route of the application consumes (CAMEL-24955)
                     msgs.addAll(EndpointConsumerChecks.validateYamlConsumers(content, directory, fileName, catalog));
                 }
+            }
+            if (msgs.isEmpty()) {
+                // a header read where the route keeps the name in an exchange property, or the reverse (CAMEL-25516)
+                msgs = new ArrayList<>(HeaderPropertyMixups.validate(content));
             }
             return KameletChecks.withTemplateHints(name, content, msgs);
         }
@@ -520,6 +526,14 @@ public final class SourceValidator {
      */
     public static List<String> validateXslt(String content) {
         return XmlChecks.validateXslt(content);
+    }
+
+    /**
+     * What a stylesheet does that works but is not what was meant, which does not refuse a write: a {expression} in
+     * element content, written out as text (CAMEL-25514).
+     */
+    public static List<String> xsltNotes(String content) {
+        return XmlChecks.literalBraceNotes(content);
     }
 
     /** Checks that the XML is well formed (an input file, a Camel XML DSL file or any other XML). */

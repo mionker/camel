@@ -33,6 +33,12 @@ public class MissingPluginParameterExceptionHandler implements IParameterExcepti
     public int handleParseException(ParameterException ex, String[] args) throws Exception {
         CommandLine cmd = ex.getCommandLine();
         PrintWriter err = cmd.getErr();
+        if (cmd.getCommand() instanceof UsageErrorHandler handler) {
+            Integer exitCode = handler.usageError(ex.getMessage(), args);
+            if (exitCode != null) {
+                return exitCode;
+            }
+        }
 
         if (ex.getMessage().startsWith("Unmatched argument at index 0") && args.length > 0) {
             Optional<PluginType> pluginType = PluginType.findByName(args[0]);

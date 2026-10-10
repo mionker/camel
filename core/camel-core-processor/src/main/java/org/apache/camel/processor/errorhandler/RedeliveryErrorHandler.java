@@ -35,6 +35,7 @@ import org.apache.camel.Navigate;
 import org.apache.camel.Predicate;
 import org.apache.camel.Processor;
 import org.apache.camel.Route;
+import org.apache.camel.RouteStoppingException;
 import org.apache.camel.RuntimeCamelException;
 import org.apache.camel.processor.PooledExchangeTask;
 import org.apache.camel.processor.PooledExchangeTaskFactory;
@@ -858,7 +859,7 @@ public abstract class RedeliveryErrorHandler extends ErrorHandlerSupport
         private void runNotAllowed() {
             LOG.trace("Run not allowed, will reject executing exchange: {}", exchange);
             if (exchange.getException() == null) {
-                exchange.setException(new RejectedExecutionException(notAllowedReason()));
+                exchange.setException(new RouteStoppingException(notAllowedReason()));
             }
             AsyncCallback cb = callback;
             taskFactory.release(this);
@@ -983,6 +984,10 @@ public abstract class RedeliveryErrorHandler extends ErrorHandlerSupport
 
             if (e == null) {
                 e = exchange.getProperty(ExchangePropertyKey.EXCEPTION_CAUGHT, Exception.class);
+            }
+
+            if (logCutOffByRouteStop(exchange, e, logger.getLevel())) {
+                return;
             }
 
             if (exchange.isRollbackOnly() || exchange.isRollbackOnlyLast()) {
@@ -1117,7 +1122,7 @@ public abstract class RedeliveryErrorHandler extends ErrorHandlerSupport
             if (!isRunAllowed()) {
                 LOG.trace("Run not allowed, will reject executing exchange: {}", exchange);
                 if (exchange.getException() == null) {
-                    exchange.setException(new RejectedExecutionException(notAllowedReason()));
+                    exchange.setException(new RouteStoppingException(notAllowedReason()));
                 }
                 AsyncCallback cb = callback;
                 taskFactory.release(this);
@@ -1910,6 +1915,10 @@ public abstract class RedeliveryErrorHandler extends ErrorHandlerSupport
                 e = exchange.getProperty(ExchangePropertyKey.EXCEPTION_CAUGHT, Exception.class);
             }
 
+            if (!newException && logCutOffByRouteStop(exchange, e, newLogLevel)) {
+                return;
+            }
+
             if (newException) {
                 // log at most WARN level
                 if (newLogLevel == LoggingLevel.ERROR) {
@@ -2213,10 +2222,39 @@ public abstract class RedeliveryErrorHandler extends ErrorHandlerSupport
      * {@code RejectedExecutionException - null}, which looks like a fault in the route, while it is a route stop or a
      * dev mode reload cutting the exchange off (CAMEL-25365).
      */
+    static final String ROUTE_STOPPING_REASON = "The exchange cannot continue: its route is being stopped or reloaded";
+
     String notAllowedReason() {
         return shutdownStrategy.isForceShutdown()
                 ? "The exchange cannot continue: its route was forced to shut down, as the graceful shutdown timed out"
                   + " while it was in flight (the CamelContext is being stopped)"
-                : "The exchange cannot continue: its route is being stopped or reloaded";
+                : ROUTE_STOPPING_REASON;
+    }
+
+    /**
+     * Whether the failure is an exchange cut off by a route stop, a dev mode reload or a CamelContext stop: nothing in
+     * the route failed, and a consumer that rolls back, such as file, delivers it again (CAMEL-25484, CAMEL-25502).
+     */
+    static boolean isCutOffByRouteStop(Throwable e) {
+        return e instanceof RouteStoppingException;
+    }
+
+    /**
+     * Logs an exchange that a route stop, a dev mode reload or a CamelContext stop cut off as one line at most WARN,
+     * without the message history and stack trace of a failure, as nothing in the route failed (CAMEL-25484).
+     *
+     * @return whether the exchange was cut off, and so is logged
+     */
+    boolean logCutOffByRouteStop(Exchange exchange, Throwable e, LoggingLevel level) {
+        if (!isCutOffByRouteStop(e) || exchange.isRollbackOnly() || exchange.isRollbackOnlyLast()) {
+            return false;
+        }
+        String reason = shutdownStrategy.isForceShutdown()
+                ? "the CamelContext is being stopped" : "its route is being stopped or reloaded";
+        logger.log("Exchange cut off " + ExchangeHelper.logIds(exchange) + failureOrigin(exchange)
+                   + ": " + reason + ", so it is not continued."
+                   + " A consumer that rolls back, such as file, delivers it again",
+                level == LoggingLevel.ERROR ? LoggingLevel.WARN : level);
+        return true;
     }
 }

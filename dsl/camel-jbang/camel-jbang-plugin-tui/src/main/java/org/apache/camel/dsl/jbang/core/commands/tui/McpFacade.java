@@ -1034,6 +1034,13 @@ class McpFacade {
         return tabRegistry.historyTab().toggleDisplaySection(section, enabled);
     }
 
+    /** Query the selected runtime without changing tabs, drafts, filters or the selected audit record. */
+    JsonObject queryAudit(JsonObject request) {
+        IntegrationInfo selected = ctx == null ? null : ctx.findSelectedIntegration();
+        String pid = selected == null ? null : selected.phantom ? selected.linkedPid : selected.pid;
+        return pid == null ? null : ctx.executeIndependentAction(pid, request, 10000);
+    }
+
     // ---- Integration data ----
 
     JsonObject getReadme(String name) {
@@ -1388,6 +1395,20 @@ class McpFacade {
         describeSourceDirectory(target, dir, result);
         result.put("lines", lines);
         result.put("bytes", content.getBytes(StandardCharsets.UTF_8).length);
+        // a route sending to a direct: endpoint no route consumes yet: its route goes in the same call (CAMEL-25501)
+        List<String> notes = new ArrayList<>();
+        AuthoringTools.UnconsumedDirect waiting = AuthoringTools.unconsumedDirect(dir, file, content, null);
+        if (waiting != null) {
+            notes.add(waiting.note());
+        }
+        String lower = file.toLowerCase(Locale.ROOT);
+        if (lower.endsWith(".xsl") || lower.endsWith(".xslt")) {
+            // a {expression} in element content is written out as text (CAMEL-25514)
+            notes.addAll(SourceValidator.xsltNotes(content));
+        }
+        if (!notes.isEmpty()) {
+            result.put("notes", new JsonArray(notes));
+        }
         return result;
     }
 
@@ -1397,6 +1418,11 @@ class McpFacade {
      * write (CAMEL-24909). The reading and the matching are the shared tool's, only the writing is the TUI's.
      */
     JsonObject editFile(String name, String file, String find, String replace, boolean confirm) {
+        return editFile(name, file, find, replace, null, confirm);
+    }
+
+    /** As {@link #editFile(String, String, String, String, boolean)} with several edits, written once (CAMEL-25501). */
+    JsonObject editFile(String name, String file, String find, String replace, String edits, boolean confirm) {
         IntegrationInfo target = findIntegration(name);
         if (target == null) {
             return writeError(name != null && !name.isEmpty()
@@ -1406,7 +1432,7 @@ class McpFacade {
         if (dir == null || !Files.isDirectory(dir)) {
             return writeError("No source directory found for the integration");
         }
-        JsonObject edit = AuthoringTools.editedContent(dir, file, find, replace);
+        JsonObject edit = AuthoringTools.editedContent(dir, file, find, replace, edits);
         String content = edit.getString("content");
         if (content == null) {
             return edit; // not-found, ambiguous or an error: the shared answer says what to do
@@ -1416,6 +1442,10 @@ class McpFacade {
             result.put("status", "edited");
             result.put("editedAtLine", edit.getInteger("editedAtLine"));
             result.put("replacedLines", edit.getInteger("replacedLines"));
+            if (edit.get("edits") != null) {
+                result.put("edits", edit.get("edits"));
+                result.put("editedAtLines", edit.get("editedAtLines"));
+            }
         }
         return result;
     }
