@@ -63,8 +63,8 @@ public class BatchConsumerTransactedTest extends JmsTestSupport {
                 IntStream.rangeClosed(1, 5)
                         .mapToObj(i -> String.format(MESSAGE_TEXT, i))
                         .toList(),
-                getBatchBodiesAsString(mockFinish.getExchanges().getFirst()));
-        assertBatchRedelivered(mockFinish.getExchanges().getFirst(), "Message 1", true);
+                getBatchBodiesAsString(mockFinish.getExchanges().get(0)));
+        assertBatchRedelivered(mockFinish.getExchanges().get(0), "Message 1", true);
 
     }
 
@@ -86,8 +86,8 @@ public class BatchConsumerTransactedTest extends JmsTestSupport {
                 IntStream.rangeClosed(1, 5)
                         .mapToObj(i -> String.format(MESSAGE_TEXT, i))
                         .toList(),
-                getBatchBodiesAsString(mockFinish.getExchanges().getFirst()));
-        assertBatchRedelivered(mockFinish.getExchanges().getFirst(), "Message 1", true);
+                getBatchBodiesAsString(mockFinish.getExchanges().get(0)));
+        assertBatchRedelivered(mockFinish.getExchanges().get(0), "Message 1", true);
     }
 
     @Test

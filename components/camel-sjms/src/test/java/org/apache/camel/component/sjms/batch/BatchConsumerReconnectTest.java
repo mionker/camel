@@ -153,7 +153,7 @@ public class BatchConsumerReconnectTest extends JmsExclusiveTestSupport {
         sendMessagesWithText(template, endpointUri, 2, "Before!");
 
         int connectionsBefore = countingFactory.getCreateCount();
-        triggerConnectionFailure(context, ROUTE_ID_AUTO_ACK_NO_TX);
+        triggerConnectionFailure(context, ROUTE_ID_CLIENT_ACK_NO_TX);
         await().atMost(30, TimeUnit.SECONDS)
                 .until(() -> countingFactory.getCreateCount() > connectionsBefore);
 

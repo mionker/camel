@@ -328,6 +328,8 @@ A batch completes when either `batchSize` messages have been received, or the `b
 measured from the first message in the batch - has elapsed.
 
 Commit/acknowledgement happens once per batch rather than once per message. With
+`acknowledgementMode=AUTO_ACKNOWLEDGE`, messages are acknowledged as they're received into the batch,
+before routing — so a failed batch cannot be redelivered. Use `transacted=true` or
 `acknowledgementMode=CLIENT_ACKNOWLEDGE` if the whole batch should be redelivered together on failure.
 
 A failed batch is rolled back and redelivered as a whole, so the route should be idempotent. One bad message
